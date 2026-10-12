@@ -34,6 +34,17 @@ PAPERS = (
         "validator": ["python3", "scripts/validate_derivative.py", "."],
     },
     {
+        "key": "transitions",
+        "title": "Controlling Consequential Transitions: An Execution Contract and Architecture-Review Method for Agent Workflows",
+        "display_title": "Controlling Consequential Transitions",
+        "subtitle": "An Execution Contract and Architecture-Review Method for Agent Workflows",
+        "date": "2026/09/22",
+        "slug": "controlling-consequential-transitions",
+        "pdf": "controlling-consequential-transitions.pdf",
+        "pdf_sha256": "fd0182d44e827ab8d1ed2cc78e06be8b225cf97d690a8e2db20be0c52190a934",
+        "validator": ["python3", "scripts/validate_derivative.py", "--repo", "."],
+    },
+    {
         "key": "intelligence",
         "title": "Intelligence by Appointment",
         "date": "2026/09/21",
@@ -76,14 +87,15 @@ def validate_paper(root: Path, spec: dict) -> dict:
     front = page.xpath('//*[@id="scholarly-front-matter"]')
     require(len(front) == 1, f"{spec['key']}: scholarly front matter missing")
     front_text = " ".join(front[0].text_content().split())
-    require(spec["title"] in front_text and "Brad Pierce" in front_text and "Abstract" in front_text, f"{spec['key']}: incomplete visible front matter")
+    visible_title = spec.get("display_title", spec["title"])
+    require(visible_title in front_text and spec.get("subtitle", "") in front_text and "Brad Pierce" in front_text and "Abstract" in front_text, f"{spec['key']}: incomplete visible front matter")
 
     pdf = root / spec["pdf"]
     require(pdf.stat().st_size < 5_000_000, f"{spec['key']}: PDF is not below 5 MB")
     require(sha256(pdf) == spec["pdf_sha256"], f"{spec['key']}: published PDF changed")
     reader = PdfReader(pdf)
     pdf_text = " ".join("\n".join((page.extract_text() or "") for page in reader.pages).split())
-    require(spec["title"] in pdf_text and "Brad Pierce" in pdf_text and ("References" in pdf_text or "Bibliography" in pdf_text), f"{spec['key']}: PDF searchability check failed")
+    require(visible_title in pdf_text and spec.get("subtitle", "") in pdf_text and "Brad Pierce" in pdf_text and ("References" in pdf_text or "Bibliography" in pdf_text), f"{spec['key']}: PDF searchability check failed")
 
     proc = subprocess.run(spec["validator"], cwd=root, text=True, capture_output=True)
     require(proc.returncode == 0, f"{spec['key']}: repository validator failed\n{proc.stdout}\n{proc.stderr}")
@@ -96,6 +108,7 @@ def main() -> None:
     parser.add_argument("--staying-capable", type=Path, required=True)
     parser.add_argument("--design-exploration", type=Path, required=True)
     parser.add_argument("--intelligence", type=Path, required=True)
+    parser.add_argument("--transitions", type=Path, required=True)
     args = parser.parse_args()
 
     home = args.home.resolve()
@@ -109,6 +122,7 @@ def main() -> None:
         "staying-capable": args.staying_capable.resolve(),
         "design-exploration": args.design_exploration.resolve(),
         "intelligence": args.intelligence.resolve(),
+        "transitions": args.transitions.resolve(),
     }
     results = [validate_paper(roots[spec["key"]], spec) for spec in PAPERS]
 
