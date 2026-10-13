@@ -53,6 +53,7 @@ PAPERS = (
         "pdf_sha256": "fb340eba69d493b9539c506903b1b3a7a8ccc81080647a53aa5543112400b9f4",
         "validator": ["python3", "scripts/validate_derivative.py", "."],
     },
+    {'key': 'architecture', 'title': 'The Architecture Is Old. The Computational Actor Is New.', 'subtitle': 'C++HDL, AI agents, and moving the RTL development loop while keeping SystemVerilog at the boundary', 'date': '2026/09/13', 'slug': 'the-architecture-is-old-the-computational-actor-is-new', 'pdf': 'the-architecture-is-old-the-computational-actor-is-new.pdf', 'pdf_sha256': '6f31c26c9859a616437d6014697db2fc838166bcf639d4e93384678a4263d67f', 'validator': ['python3', 'scripts/validate_derivative.py', '--repo', '.']},
 )
 
 
@@ -109,6 +110,7 @@ def main() -> None:
     parser.add_argument("--design-exploration", type=Path, required=True)
     parser.add_argument("--intelligence", type=Path, required=True)
     parser.add_argument("--transitions", type=Path, required=True)
+    parser.add_argument("--architecture", type=Path, required=True)
     args = parser.parse_args()
 
     home = args.home.resolve()
@@ -124,6 +126,7 @@ def main() -> None:
         "intelligence": args.intelligence.resolve(),
         "transitions": args.transitions.resolve(),
     }
+    roots["architecture"] = args.architecture.resolve()
     results = [validate_paper(roots[spec["key"]], spec) for spec in PAPERS]
 
     sitemap = (home / "sitemap.xml").read_text(encoding="utf-8")
@@ -134,6 +137,14 @@ def main() -> None:
         require(result["pdf_url"] in home_source, f"Home page does not link to {result['pdf_url']}")
         require(result["article_url"] in sitemap and result["pdf_url"] in sitemap, f"Root sitemap is incomplete for {result['title']}")
 
+    expected_order = ["When Design Exploration Gets Cheap", "Staying Capable in a World That Pushes Back", "Controlling Consequential Transitions", "Intelligence by Appointment", "The Architecture Is Old. The Computational Actor Is New."]
+    require(home_page.xpath('//article/h3/text()') == expected_order, "Selected-paper ordering changed")
+    from lxml import etree
+    locs = etree.fromstring(sitemap.encode()).xpath('//*[local-name()="loc"]/text()')
+    expected_urls = {"https://bradpierce.ai/"} | {r[k] for r in results for k in ("article_url", "pdf_url")}
+    require(len(locs) == len(set(locs)) == 11 and set(locs) == expected_urls, "Sitemap does not exactly cover five papers")
+    require((home / "CNAME").read_text().strip() == "bradpierce.ai", "Custom domain changed")
+    require(sha256(home / "googled0bbaedd4ac79dfb.html") == "8718036a2e6efadaa108f68526a22772d506c9b45b86fe9bd6a125e66eb41c85", "Permanent Google verification file changed")
     print(json.dumps({"status": "PASS", "home": "https://bradpierce.ai/", "papers": results}, indent=2))
 
 
