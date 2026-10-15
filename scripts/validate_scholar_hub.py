@@ -15,6 +15,7 @@ from pypdf import PdfReader
 
 
 PAPERS = (
+    {'key': 'external-analysis', 'title': 'External Analysis of Protected Data', 'subtitle': 'Data Clean Rooms, Confidential Computing, Approved Queries, and the Emerging Agent Interface', 'date': '2026/10/14', 'slug': 'external-analysis-of-protected-data', 'pdf': 'external-analysis-of-protected-data.pdf', 'pdf_sha256': '6d6ecdf9d44e18f296844af01b0dd55facbc8a3f09c358638f0c4cf7b1f97892', 'validator': ['python3', 'scripts/validate_derivative.py', '--repo', '.']},
     {
         "key": "staying-capable",
         "title": "Staying Capable in a World That Pushes Back",
@@ -97,7 +98,7 @@ def validate_paper(root: Path, spec: dict) -> dict:
     require(sha256(pdf) == spec["pdf_sha256"], f"{spec['key']}: published PDF changed")
     reader = PdfReader(pdf)
     pdf_text = " ".join("\n".join((page.extract_text() or "") for page in reader.pages).split())
-    require(visible_title in pdf_text and spec.get("subtitle", "") in pdf_text and "Brad Pierce" in pdf_text and ("References" in pdf_text or "Bibliography" in pdf_text), f"{spec['key']}: PDF searchability check failed")
+    require(visible_title in pdf_text and spec.get("subtitle", "") in pdf_text and "Brad Pierce" in pdf_text and ("references" in pdf_text.casefold() or "bibliography" in pdf_text.casefold()), f"{spec['key']}: PDF searchability check failed")
 
     proc = subprocess.run(spec["validator"], cwd=root, text=True, capture_output=True)
     require(proc.returncode == 0, f"{spec['key']}: repository validator failed\n{proc.stdout}\n{proc.stderr}")
@@ -113,6 +114,7 @@ def main() -> None:
     parser.add_argument("--transitions", type=Path, required=True)
     parser.add_argument("--architecture", type=Path, required=True)
     parser.add_argument("--agents-act", type=Path, required=True)
+    parser.add_argument("--external-analysis", type=Path, required=True)
     args = parser.parse_args()
 
     home = args.home.resolve()
@@ -130,6 +132,7 @@ def main() -> None:
     }
     roots["architecture"] = args.architecture.resolve()
     roots["agents-act"] = args.agents_act.resolve()
+    roots["external-analysis"] = args.external_analysis.resolve()
     results = [validate_paper(roots[spec["key"]], spec) for spec in PAPERS]
 
     sitemap = (home / "sitemap.xml").read_text(encoding="utf-8")
@@ -140,12 +143,12 @@ def main() -> None:
         require(result["pdf_url"] in home_source, f"Home page does not link to {result['pdf_url']}")
         require(result["article_url"] in sitemap and result["pdf_url"] in sitemap, f"Root sitemap is incomplete for {result['title']}")
 
-    expected_order = ["When Design Exploration Gets Cheap", "Staying Capable in a World That Pushes Back", "Controlling Consequential Transitions", "Intelligence by Appointment", "The Architecture Is Old. The Computational Actor Is New.", "Agents Act. Systems Remember. Rules Authorize. People Govern."]
+    expected_order = ["When Design Exploration Gets Cheap", "Staying Capable in a World That Pushes Back", "Controlling Consequential Transitions", "Intelligence by Appointment", "The Architecture Is Old. The Computational Actor Is New.", "Agents Act. Systems Remember. Rules Authorize. People Govern.", "External Analysis of Protected Data"]
     require(home_page.xpath('//article/h3/text()') == expected_order, "Selected-paper ordering changed")
     from lxml import etree
     locs = etree.fromstring(sitemap.encode()).xpath('//*[local-name()="loc"]/text()')
     expected_urls = {"https://bradpierce.ai/"} | {r[k] for r in results for k in ("article_url", "pdf_url")}
-    require(len(locs) == len(set(locs)) == 13 and set(locs) == expected_urls, "Sitemap does not exactly cover six papers")
+    require(len(locs) == len(set(locs)) == 15 and set(locs) == expected_urls, "Sitemap does not exactly cover seven papers")
     require((home / "CNAME").read_text().strip() == "bradpierce.ai", "Custom domain changed")
     require(sha256(home / "googled0bbaedd4ac79dfb.html") == "8718036a2e6efadaa108f68526a22772d506c9b45b86fe9bd6a125e66eb41c85", "Permanent Google verification file changed")
     print(json.dumps({"status": "PASS", "home": "https://bradpierce.ai/", "papers": results}, indent=2))
