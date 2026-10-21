@@ -15,6 +15,7 @@ from pypdf import PdfReader
 
 
 PAPERS = (
+    {'key': 'silicate', 'title': 'Silicate Rocks and Mineral Residues as Sources of Cementitious Precursors: A Literature Survey', 'display_title': 'Silicate Rocks and Mineral Residues as Sources of Cementitious Precursors', 'subtitle': 'A Literature Survey', 'date': '2026/10/21', 'slug': 'silicate-cementitious-precursors', 'pdf': 'silicate-cementitious-precursors.pdf', 'pdf_sha256': '43a1b73ebb707c94e1f6a09dc3e356707d288beb27d8e5c8582ef60445fdfdca', 'validator': [sys.executable, '-B', 'scripts/validate_derivative.py', '--repo', '.']},
     {'key': 'basalt', 'title': 'Basalt and Basalt-Derived Materials in Cement Manufacture and Cementitious Composites: A Global Literature Survey', 'display_title': 'Basalt and Basalt-Derived Materials in Cement Manufacture and Cementitious Composites', 'subtitle': 'A Global Literature Survey', 'date': '2026/10/20', 'slug': 'basalt-cement-survey', 'pdf': 'basalt-cement-survey.pdf', 'pdf_sha256': 'd48f566893a941cd4ca474d33b5160eb43fe275b11527db024ee45f3db0a3294', 'validator': [sys.executable, '-B', 'scripts/validate_derivative.py', '--repo', '.']},
     {'key': 'external-analysis', 'title': 'External Analysis of Protected Data', 'subtitle': 'Data Clean Rooms, Confidential Computing, Approved Queries, and the Emerging Agent Interface', 'date': '2026/10/14', 'slug': 'external-analysis-of-protected-data', 'pdf': 'external-analysis-of-protected-data.pdf', 'pdf_sha256': '6d6ecdf9d44e18f296844af01b0dd55facbc8a3f09c358638f0c4cf7b1f97892', 'validator': ['python3', 'scripts/validate_derivative.py', '--repo', '.']},
     {
@@ -121,6 +122,7 @@ def main() -> None:
     parser.add_argument("--reasoning", type=Path, required=True)
     parser.add_argument("--questions", type=Path, required=True)
     parser.add_argument("--basalt", type=Path, required=True)
+    parser.add_argument("--silicate", type=Path, required=True)
     args = parser.parse_args()
 
     home = args.home.resolve()
@@ -142,6 +144,7 @@ def main() -> None:
     roots["reasoning"] = args.reasoning.resolve()
     roots["questions"] = args.questions.resolve()
     roots["basalt"] = args.basalt.resolve()
+    roots["silicate"] = args.silicate.resolve()
     results = [validate_paper(roots[spec["key"]], spec) for spec in PAPERS]
 
     sitemap = (home / "sitemap.xml").read_text(encoding="utf-8")
@@ -152,12 +155,12 @@ def main() -> None:
         require(result["pdf_url"] in home_source, f"Home page does not link to {result['pdf_url']}")
         require(result["article_url"] in sitemap and result["pdf_url"] in sitemap, f"Root sitemap is incomplete for {result['title']}")
 
-    expected_order = ["When Design Exploration Gets Cheap", "Staying Capable in a World That Pushes Back", "Controlling Consequential Transitions", "Intelligence by Appointment", "The Architecture Is Old. The Computational Actor Is New.", "Agents Act. Systems Remember. Rules Authorize. People Govern.", "External Analysis of Protected Data", "When Reasoning Leaves the Transcript", "When Questions Become Markets", 'Basalt and Basalt-Derived Materials in Cement Manufacture and Cementitious Composites']
+    expected_order = ["When Design Exploration Gets Cheap", "Staying Capable in a World That Pushes Back", "Controlling Consequential Transitions", "Intelligence by Appointment", "The Architecture Is Old. The Computational Actor Is New.", "Agents Act. Systems Remember. Rules Authorize. People Govern.", "External Analysis of Protected Data", "When Reasoning Leaves the Transcript", "When Questions Become Markets", 'Basalt and Basalt-Derived Materials in Cement Manufacture and Cementitious Composites', 'Silicate Rocks and Mineral Residues as Sources of Cementitious Precursors']
     require(home_page.xpath('//article/h3/text()') == expected_order, "Selected-paper ordering changed")
     from lxml import etree
     locs = etree.fromstring(sitemap.encode()).xpath('//*[local-name()="loc"]/text()')
     expected_urls = {"https://bradpierce.ai/"} | {r[k] for r in results for k in ("article_url", "pdf_url")}
-    require(len(locs) == len(set(locs)) == 21 and set(locs) == expected_urls, "Sitemap does not exactly cover ten papers")
+    require(len(locs) == len(set(locs)) == 23 and set(locs) == expected_urls, "Sitemap does not exactly cover eleven papers")
     require((home / "CNAME").read_text().strip() == "bradpierce.ai", "Custom domain changed")
     require(sha256(home / "googled0bbaedd4ac79dfb.html") == "8718036a2e6efadaa108f68526a22772d506c9b45b86fe9bd6a125e66eb41c85", "Permanent Google verification file changed")
     print(json.dumps({"status": "PASS", "home": "https://bradpierce.ai/", "papers": results}, indent=2))
